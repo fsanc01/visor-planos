@@ -133,7 +133,10 @@ function isImage(url){
   return /\.(jpe?g|png|webp|gif)(\?.*)?$/i.test(url.split('?')[0]);
 }
 
+var IS_IMAGE = false;
+
 function loadImage(url){
+  IS_IMAGE = true;
   var img = new Image();
   img.crossOrigin = 'anonymous';
   img.onload = function(){
@@ -202,7 +205,7 @@ if(!PDF_URL){
 function drawPins(){
   DEVICES.forEach(function(d){
     var col = (TYPES[d.t] || TYPES.sen).c;
-    var yy  = vbH - d.y;
+    var yy  = IS_IMAGE ? d.y : (vbH - d.y);
     var g   = document.createElementNS(svg.namespaceURI,'g');
     g.setAttribute('transform','translate('+d.x+','+yy+')');
     g.style.cursor = 'pointer';
