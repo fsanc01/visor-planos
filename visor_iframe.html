@@ -128,30 +128,54 @@ var pop    = document.getElementById('pop');
 var loader = document.getElementById('loading');
 var errDiv = document.getElementById('error');
 
-/* ─── Cargar PDF ─────────────────────────────────────────────────────────── */
-if(!PDF_URL){
-  showError('No se recibió la URL del PDF.','Revisá que el parámetro "pdf" esté en la URI del iframe de Bubble.');
-} else {
+/* ─── Cargar plano (PDF o imagen) ────────────────────────────────────────── */
+function isImage(url){
+  return /\.(jpe?g|png|webp|gif)(\?.*)?$/i.test(url.split('?')[0]);
+}
+
+function loadImage(url){
+  var img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = function(){
+    pdfW = img.naturalWidth;
+    pdfH = img.naturalHeight;
+    vbW  = pdfW;
+    vbH  = pdfH;
+    var cv = document.getElementById('pdfCanvas');
+    cv.width  = pdfW;
+    cv.height = pdfH;
+    cv.getContext('2d').drawImage(img, 0, 0);
+    svg.setAttribute('width',  pdfW);
+    svg.setAttribute('height', pdfH);
+    svg.setAttribute('viewBox','0 0 '+vbW+' '+vbH);
+    drawPins();
+    fit();
+    loader.style.display = 'none';
+  };
+  img.onerror = function(){
+    showError('No se pudo cargar la imagen.', 'Verificá que la URL sea pública y accesible.');
+  };
+  img.src = url;
+}
+
+function loadPDF(url){
   pdfjsLib.GlobalWorkerOptions.workerSrc =
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
-  pdfjsLib.getDocument(PDF_URL).promise
+  pdfjsLib.getDocument(url).promise
     .then(function(pdf){ return pdf.getPage(1); })
     .then(function(page){
-      var RENDER = 2.5;
+      var RENDER = 1.8;
       pageViewport = page.getViewport({scale: RENDER});
       pdfW = pageViewport.width;
       pdfH = pageViewport.height;
       vbW  = pageViewport.viewBox[2];
       vbH  = pageViewport.viewBox[3];
-
       var cv = document.getElementById('pdfCanvas');
       cv.width  = pdfW;
       cv.height = pdfH;
       svg.setAttribute('width',  pdfW);
       svg.setAttribute('height', pdfH);
       svg.setAttribute('viewBox','0 0 '+vbW+' '+vbH);
-
       return page.render({canvasContext: cv.getContext('2d'), viewport: pageViewport}).promise;
     })
     .then(function(){
@@ -162,6 +186,16 @@ if(!PDF_URL){
     .catch(function(e){
       showError('No se pudo renderizar el PDF.', e.message || 'Verificá que la URL sea pública y accesible.');
     });
+}
+
+if(!PDF_URL){
+  showError('No se recibió la URL del plano.','Revisá que el parámetro "pdf" esté en la URI del iframe de Bubble.');
+} else {
+  if(isImage(PDF_URL)){
+    loadImage(PDF_URL);
+  } else {
+    loadPDF(PDF_URL);
+  }
 }
 
 /* ─── Pins ───────────────────────────────────────────────────────────────── */
