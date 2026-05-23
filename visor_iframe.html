@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Visor de Planos</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:100%;height:100%;overflow:hidden;background:#0f1115;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#e8eaf0}
+
+  #stage{position:absolute;inset:0;cursor:grab;touch-action:none;overflow:hidden}
+  #stage.grab{cursor:grabbing}
+  #world{position:absolute;left:0;top:0;transform-origin:0 0}
+  #pdfCanvas{display:block;background:#fff;box-shadow:0 8px 40px rgba(0,0,0,.7)}
+  #pins{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
+
+  #ctl{position:fixed;right:14px;bottom:24px;display:flex;flex-direction:column;gap:8px;z-index:10}
+  .btn{width:42px;height:42px;border-radius:10px;background:#161922;border:1px solid #262b38;
+    color:#e8eaf0;font-size:20px;cursor:pointer;display:flex;align-items:center;
+    justify-content:center;-webkit-tap-highlight-color:transparent}
+
+  #pop{position:fixed;left:14px;bottom:90px;right:14px;z-index:10;
+    background:#161922;border:1px solid #2d3347;border-radius:14px;
+    box-shadow:0 12px 40px rgba(0,0,0,.6);opacity:0;pointer-events:none;
+    transition:opacity .16s,transform .16s;transform:translateY(8px)}
+  #pop.show{opacity:1;pointer-events:all;transform:translateY(0)}
+  #pop-head{padding:13px 15px 10px;border-bottom:1px solid #262b38;
+    display:flex;align-items:center;justify-content:space-between}
+  #pop-id{font-weight:700;font-size:14px;font-family:monospace}
+  #pop-close{font-size:20px;cursor:pointer;color:#8b93a7;line-height:1;padding:2px 4px}
+  #pop-body{padding:12px 15px;font-size:13px;line-height:1.8}
+  #pop-body .row{display:flex;justify-content:space-between;
+    border-bottom:1px dashed #1e2233;padding:4px 0}
+  #pop-body .row:last-child{border-bottom:none}
+  #pop-body .k{color:#8b93a7}
+  #pop-body .v{font-weight:600}
+  .st{padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700}
+
+  #loading{position:fixed;inset:0;background:#0f1115;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;z-index:20;gap:14px}
+  #loading p{color:#8b93a7;font-size:13px}
+  .spinner{width:36px;height:36px;border:3px solid #262b38;border-top-color:#3ddc97;
+    border-radius:50%;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  #error{position:fixed;inset:0;background:#0f1115;display:none;flex-direction:column;
+    align-items:center;justify-content:center;z-index:20;gap:12px;padding:30px;text-align:center}
+  #error h2{color:#ff6b6b;font-size:16px}
+  #error p{color:#8b93a7;font-size:13px;line-height:1.6}
+</style>
+</head>
+<body>
+
+<div id="loading"><div class="spinner"></div><p>Cargando plano…</p></div>
+<div id="error"><h2>No se pudo cargar el plano</h2><p id="error-msg"></p></div>
+
+<div id="stage">
+  <div id="world">
+    <canvas id="pdfCanvas"></canvas>
+    <svg id="pins"></svg>
+  </div>
+</div>
+
+<div id="ctl">
+  <button class="btn" id="zin">+</button>
+  <button class="btn" id="zout">−</button>
+  <button class="btn" id="fit">⤢</button>
+</div>
+
+<div id="pop">
+  <div id="pop-head">
+    <span id="pop-id"></span>
+    <span id="pop-close">×</span>
+  </div>
+  <div id="pop-body"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+/* ─── Leer parámetros de la URL ──────────────────────────────────────────────
+   Bubble arma la URI del iframe así:
+   https://tu-sitio.com/visor.html?pdf=URL_DEL_PDF&devices=JSON_ENCODADO
+
+   El JSON de devices debe estar encodeado con encodeURIComponent() en Bubble.
+   Ejemplo de un dispositivo:
+   [{"id":"CAM-101","t":"cam","x":262,"y":235,"room":"Oficina 101","ip":"10.0.1.11","st":"OK"}]
+
+   Tipos válidos para "t":  cam | ap | sen | pan
+   ─────────────────────────────────────────────────────────────────────────── */
+var params  = new URLSearchParams(window.location.search);
+var PDF_URL = params.get('pdf');
+var DEVICES = [];
+try { DEVICES = JSON.parse(decodeURIComponent(params.get('devices') || '[]')); }
+catch(e){ DEVICES = []; }
+
+/* ─── Tipos de dispositivo ───────────────────────────────────────────────── */
+var TYPES = {
+  cam: {c:"#3ddc97", l:"Cámara IP"},
+  ap:  {c:"#5b9dff", l:"Access Point"},
+  sen: {c:"#ffb454", l:"Sensor"},
+  pan: {c:"#ff6b6b", l:"Tablero/Panel"}
+};
+var STC = {OK:"#3ddc97","Degr.":"#ffb454","Falla":"#ff6b6b"};
+
+/* ─── Estado del visor ───────────────────────────────────────────────────── */
+var scale=1, baseScale=1, ox=0, oy=0;
+var pdfW=0, pdfH=0, vbW=0, vbH=0;
+var selected=null, pageViewport=null;
+
+var stage  = document.getElementById('stage');
+var world  = document.getElementById('world');
+var svg    = document.getElementById('pins');
+var pop    = document.getElementById('pop');
+var loader = document.getElementById('loading');
+var errDiv = document.getElementById('error');
+
+/* ─── Cargar PDF ─────────────────────────────────────────────────────────── */
+if(!PDF_URL){
+  showError('No se recibió la URL del PDF.','Revisá que el parámetro "pdf" esté en la URI del iframe de Bubble.');
+} else {
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  pdfjsLib.getDocument(PDF_URL).promise
+    .then(function(pdf){ return pdf.getPage(1); })
+    .then(function(page){
+      var RENDER = 2.5;
+      pageViewport = page.getViewport({scale: RENDER});
+      pdfW = pageViewport.width;
+      pdfH = pageViewport.height;
+      vbW  = pageViewport.viewBox[2];
+      vbH  = pageViewport.viewBox[3];
+
+      var cv = document.getElementById('pdfCanvas');
+      cv.width  = pdfW;
+      cv.height = pdfH;
+      svg.setAttribute('width',  pdfW);
+      svg.setAttribute('height', pdfH);
+      svg.setAttribute('viewBox','0 0 '+vbW+' '+vbH);
+
+      return page.render({canvasContext: cv.getContext('2d'), viewport: pageViewport}).promise;
+    })
+    .then(function(){
+      drawPins();
+      fit();
+      loader.style.display = 'none';
+    })
+    .catch(function(e){
+      showError('No se pudo renderizar el PDF.', e.message || 'Verificá que la URL sea pública y accesible.');
+    });
+}
+
+/* ─── Pins ───────────────────────────────────────────────────────────────── */
+function drawPins(){
+  DEVICES.forEach(function(d){
+    var col = (TYPES[d.t] || TYPES.sen).c;
+    var yy  = vbH - d.y;
+    var g   = document.createElementNS(svg.namespaceURI,'g');
+    g.setAttribute('transform','translate('+d.x+','+yy+')');
+    g.style.cursor = 'pointer';
+    g.style.pointerEvents = 'all';
+    g.dataset.id = d.id;
+    g.innerHTML =
+      '<circle r="14" fill="'+col+'" fill-opacity=".2" stroke="'+col+'" stroke-width="2.5"/>'+
+      '<circle r="6" fill="'+col+'"/>';
+    g.addEventListener('click', function(e){ e.stopPropagation(); selectPin(d.id, true); });
+    svg.appendChild(g);
+  });
+}
+
+function rescalePins(){
+  var inv = 1/scale;
+  svg.querySelectorAll('g[data-id]').forEach(function(p){
+    var m = p.getAttribute('transform').match(/translate\(([^,]+),([^)]+)\)/);
+    if(m) p.setAttribute('transform','translate('+m[1]+','+m[2]+') scale('+inv+')');
+  });
+}
+
+/* ─── Transform ──────────────────────────────────────────────────────────── */
+function apply(){
+  world.style.transform = 'translate('+ox+'px,'+oy+'px) scale('+scale+')';
+  rescalePins();
+  if(selected) placePopup();
+}
+
+function fit(){
+  var r = stage.getBoundingClientRect(), pad = 40;
+  baseScale = Math.min((r.width-pad)/pdfW, (r.height-pad)/pdfH);
+  scale = baseScale;
+  ox = (r.width  - pdfW*scale)/2;
+  oy = (r.height - pdfH*scale)/2;
+  apply();
+}
+
+function zoomAt(cx,cy,f){
+  var nx = scale*f;
+  if(nx < baseScale*0.4 || nx > baseScale*14) return;
+  ox = cx-(cx-ox)*f; oy = cy-(cy-oy)*f; scale = nx; apply();
+}
+
+/* ─── Eventos de navegación ─────────────────────────────────────────────── */
+stage.addEventListener('wheel', function(e){
+  e.preventDefault();
+  var r = stage.getBoundingClientRect();
+  zoomAt(e.clientX-r.left, e.clientY-r.top, e.deltaY<0?1.12:1/1.12);
+},{passive:false});
+
+// Paneo mouse
+var drag = null;
+stage.addEventListener('pointerdown', function(e){
+  drag = {x:e.clientX, y:e.clientY, ox:ox, oy:oy};
+  stage.classList.add('grab');
+  stage.setPointerCapture(e.pointerId);
+});
+stage.addEventListener('pointermove', function(e){
+  if(!drag) return;
+  ox = drag.ox+(e.clientX-drag.x); oy = drag.oy+(e.clientY-drag.y); apply();
+});
+stage.addEventListener('pointerup',   function(){ drag=null; stage.classList.remove('grab'); });
+stage.addEventListener('click', function(e){
+  if(e.target===stage||e.target===world||e.target.id==='pdfCanvas') deselect();
+});
+
+// Pinch-to-zoom táctil
+var t0=null, d0=0, ox0=0, oy0=0, s0=0;
+stage.addEventListener('touchstart', function(e){
+  if(e.touches.length===2){
+    e.preventDefault();
+    var t=e.touches;
+    t0={x:(t[0].clientX+t[1].clientX)/2, y:(t[0].clientY+t[1].clientY)/2};
+    d0=Math.hypot(t[1].clientX-t[0].clientX, t[1].clientY-t[0].clientY);
+    ox0=ox; oy0=oy; s0=scale;
+  }
+},{passive:false});
+stage.addEventListener('touchmove', function(e){
+  if(e.touches.length===2 && t0){
+    e.preventDefault();
+    var t=e.touches;
+    var d=Math.hypot(t[1].clientX-t[0].clientX, t[1].clientY-t[0].clientY);
+    var f=d/d0, ns=Math.max(baseScale*0.4,Math.min(s0*f,baseScale*14));
+    var cx=(t[0].clientX+t[1].clientX)/2, cy=(t[0].clientY+t[1].clientY)/2;
+    ox=cx-(t0.x-ox0)*ns/s0-(cx-t0.x); oy=cy-(t0.y-oy0)*ns/s0-(cy-t0.y);
+    scale=ns; apply();
+  }
+},{passive:false});
+
+// Botones
+document.getElementById('zin').onclick  = function(){ var r=stage.getBoundingClientRect(); zoomAt(r.width/2,r.height/2,1.25); };
+document.getElementById('zout').onclick = function(){ var r=stage.getBoundingClientRect(); zoomAt(r.width/2,r.height/2,1/1.25); };
+document.getElementById('fit').onclick  = fit;
+
+/* ─── Popup ──────────────────────────────────────────────────────────────── */
+function selectPin(id, center){
+  selected = id;
+  var d = DEVICES.filter(function(x){ return x.id===id; })[0];
+  if(!d) return;
+  if(center){
+    var sx=d.x/vbW*pdfW, sy=(vbH-d.y)/vbH*pdfH;
+    var r=stage.getBoundingClientRect();
+    ox=r.width/2-sx*scale; oy=r.height*0.38-sy*scale; apply();
+  }
+  var col = (TYPES[d.t]||TYPES.sen).c;
+  document.getElementById('pop-id').textContent = d.id;
+  document.getElementById('pop-body').innerHTML =
+    row('Tipo',      (TYPES[d.t]||TYPES.sen).l)+
+    row('Ubicación', d.room||'—')+
+    row('IP',        d.ip||'—')+
+    rowSt('Estado',  d.st||'—');
+  pop.classList.add('show');
+}
+function row(k,v){ return '<div class="row"><span class="k">'+k+'</span><span class="v">'+v+'</span></div>'; }
+function rowSt(k,v){ var c=STC[v]||'#8b93a7';
+  return '<div class="row"><span class="k">'+k+'</span>'+
+         '<span class="v"><span class="st" style="background:'+c+'22;color:'+c+'">'+v+'</span></span></div>'; }
+
+function placePopup(){ /* en mobile el popup es fijo (fixed bottom), no necesita reposicionarse */ }
+function deselect(){ selected=null; pop.classList.remove('show'); }
+document.getElementById('pop-close').onclick = deselect;
+
+window.addEventListener('resize', fit);
+
+/* ─── Helpers ────────────────────────────────────────────────────────────── */
+function showError(title, msg){
+  loader.style.display='none';
+  errDiv.style.display='flex';
+  errDiv.querySelector('h2').textContent=title;
+  document.getElementById('error-msg').textContent=msg;
+}
+</script>
+</body>
+</html>
