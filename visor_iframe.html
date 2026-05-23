@@ -92,33 +92,19 @@ var params  = new URLSearchParams(window.location.search);
 var PDF_URL = params.get('pdf');
 var DEVICES = [];
 
-// Intenta leer devices de varias formas:
-// 1. URL-encoded (el caso ideal)
-// 2. Sin encodear (cuando Bubble no encodea)
-// 3. Extraído directo de la URL raw (por si URLSearchParams rompe el JSON)
 (function(){
-  // Intento 1: via URLSearchParams normal
-  try {
-    var raw = params.get('devices');
-    if(raw){ DEVICES = JSON.parse(decodeURIComponent(raw)); return; }
-  } catch(e){}
-
-  // Intento 2: JSON directo sin decode
-  try {
-    var raw = params.get('devices');
-    if(raw){ DEVICES = JSON.parse(raw); return; }
-  } catch(e){}
-
-  // Intento 3: extraer manualmente de la URL completa después de &devices=
   try {
     var full = window.location.href;
     var idx  = full.indexOf('&devices=');
     if(idx === -1) idx = full.indexOf('?devices=');
-    if(idx !== -1){
-      var jsonStr = full.substring(idx + 9);
-      DEVICES = JSON.parse(decodeURIComponent(jsonStr));
-    }
-  } catch(e){}
+    if(idx === -1) return;
+    var raw = decodeURIComponent(full.substring(idx + 9));
+    if(!raw) return;
+    DEVICES = raw.split('~').filter(Boolean).map(function(item){
+      var p = item.split('|');
+      return {id:p[0]||'',t:p[1]||'sen',x:parseFloat(p[2])||0,y:parseFloat(p[3])||0,room:p[4]||'',ip:p[5]||'',st:p[6]||''};
+    });
+  } catch(e){ DEVICES = []; }
 })();
 
 /* ─── Tipos de dispositivo ───────────────────────────────────────────────── */
