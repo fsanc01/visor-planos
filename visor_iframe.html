@@ -91,8 +91,35 @@
 var params  = new URLSearchParams(window.location.search);
 var PDF_URL = params.get('pdf');
 var DEVICES = [];
-try { DEVICES = JSON.parse(decodeURIComponent(params.get('devices') || '[]')); }
-catch(e){ DEVICES = []; }
+
+// Intenta leer devices de varias formas:
+// 1. URL-encoded (el caso ideal)
+// 2. Sin encodear (cuando Bubble no encodea)
+// 3. Extraído directo de la URL raw (por si URLSearchParams rompe el JSON)
+(function(){
+  // Intento 1: via URLSearchParams normal
+  try {
+    var raw = params.get('devices');
+    if(raw){ DEVICES = JSON.parse(decodeURIComponent(raw)); return; }
+  } catch(e){}
+
+  // Intento 2: JSON directo sin decode
+  try {
+    var raw = params.get('devices');
+    if(raw){ DEVICES = JSON.parse(raw); return; }
+  } catch(e){}
+
+  // Intento 3: extraer manualmente de la URL completa después de &devices=
+  try {
+    var full = window.location.href;
+    var idx  = full.indexOf('&devices=');
+    if(idx === -1) idx = full.indexOf('?devices=');
+    if(idx !== -1){
+      var jsonStr = full.substring(idx + 9);
+      DEVICES = JSON.parse(decodeURIComponent(jsonStr));
+    }
+  } catch(e){}
+})();
 
 /* ─── Tipos de dispositivo ───────────────────────────────────────────────── */
 var TYPES = {
@@ -162,9 +189,12 @@ function drawPins(){
     g.style.pointerEvents = 'all';
     g.dataset.id = d.id;
     g.innerHTML =
+      '<circle r="22" fill="transparent"/>'+
       '<circle r="14" fill="'+col+'" fill-opacity=".2" stroke="'+col+'" stroke-width="2.5"/>'+
       '<circle r="6" fill="'+col+'"/>';
-    g.addEventListener('click', function(e){ e.stopPropagation(); selectPin(d.id, true); });
+    var handler = function(e){ e.stopPropagation(); e.preventDefault(); selectPin(d.id, true); };
+    g.addEventListener('click',      handler);
+    g.addEventListener('touchend',   handler, {passive:false});
     svg.appendChild(g);
   });
 }
@@ -206,18 +236,24 @@ stage.addEventListener('wheel', function(e){
   zoomAt(e.clientX-r.left, e.clientY-r.top, e.deltaY<0?1.12:1/1.12);
 },{passive:false});
 
-// Paneo mouse
-var drag = null;
+// Paneo — solo activa si se movio mas de 6px (distingue tap de paneo)
+var drag = null, didMove = false;
 stage.addEventListener('pointerdown', function(e){
   drag = {x:e.clientX, y:e.clientY, ox:ox, oy:oy};
-  stage.classList.add('grab');
+  didMove = false;
   stage.setPointerCapture(e.pointerId);
 });
 stage.addEventListener('pointermove', function(e){
   if(!drag) return;
-  ox = drag.ox+(e.clientX-drag.x); oy = drag.oy+(e.clientY-drag.y); apply();
+  var dx=e.clientX-drag.x, dy=e.clientY-drag.y;
+  if(!didMove && Math.hypot(dx,dy) < 6) return;
+  didMove = true;
+  stage.classList.add('grab');
+  ox = drag.ox+dx; oy = drag.oy+dy; apply();
 });
-stage.addEventListener('pointerup',   function(){ drag=null; stage.classList.remove('grab'); });
+stage.addEventListener('pointerup', function(){
+  drag=null; stage.classList.remove('grab');
+});
 stage.addEventListener('click', function(e){
   if(e.target===stage||e.target===world||e.target.id==='pdfCanvas') deselect();
 });
