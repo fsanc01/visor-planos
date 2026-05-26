@@ -36,6 +36,10 @@
   #pop-body .k{color:#8b93a7}
   #pop-body .v{font-weight:600}
   .st{padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700}
+  #pop-update{width:100%;margin-top:12px;padding:11px;background:#3ddc97;color:#0f1115;
+    border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;
+    -webkit-tap-highlight-color:transparent}
+  #pop-update:active{background:#2fc882}
 
   #loading{position:fixed;inset:0;background:#0f1115;display:flex;flex-direction:column;
     align-items:center;justify-content:center;z-index:20;gap:14px}
@@ -315,17 +319,20 @@ function selectPin(id, center){
   var d = DEVICES.filter(function(x){ return x.id===id; })[0];
   if(!d) return;
   if(center){
-    var sx=d.x/vbW*pdfW, sy=(vbH-d.y)/vbH*pdfH;
+    var sx=d.x/vbW*pdfW, sy=(IS_IMAGE ? d.y/vbH*pdfH : (vbH-d.y)/vbH*pdfH);
     var r=stage.getBoundingClientRect();
     ox=r.width/2-sx*scale; oy=r.height*0.38-sy*scale; apply();
   }
-  var col = (TYPES[d.t]||TYPES.sen).c;
   document.getElementById('pop-id').textContent = d.id;
   document.getElementById('pop-body').innerHTML =
     row('Tipo',      (TYPES[d.t]||TYPES.sen).l)+
     row('Ubicación', d.room||'—')+
     row('IP',        d.ip||'—')+
-    rowSt('Estado',  d.st||'—');
+    rowSt('Estado',  d.st||'—')+
+    '<button id="pop-update">Update</button>';
+  document.getElementById('pop-update').onclick = function(){
+    window.parent.postMessage({action:'update', deviceId: d.id}, '*');
+  };
   pop.classList.add('show');
 }
 function row(k,v){ return '<div class="row"><span class="k">'+k+'</span><span class="v">'+v+'</span></div>'; }
