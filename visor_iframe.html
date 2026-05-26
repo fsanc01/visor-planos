@@ -331,7 +331,7 @@ function selectPin(id, center){
     rowSt('Estado',  d.st||'—')+
     '<button id="pop-update">Update</button>';
   document.getElementById('pop-update').onclick = function(){
-    window.parent.postMessage({action:'update', deviceId: d.id}, '*');
+    window.location.hash = 'update:' + d.id;
   };
   pop.classList.add('show');
 }
