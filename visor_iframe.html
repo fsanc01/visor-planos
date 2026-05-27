@@ -147,8 +147,22 @@ var STC = {OK:"#3ddc97","Degr.":"#ffb454","Falla":"#ff6b6b"};
 var scale=1, baseScale=1, ox=0, oy=0;
 var pdfW=0, pdfH=0, vbW=0, vbH=0;
 var selected=null, pageViewport=null;
-var pinchEndTime=0;  // timestamp del ultimo pinch para ignorar clicks accidentales
+var pinchEndTime=0;
 function dbg(msg){ var el=document.getElementById('dbg'); if(el) el.textContent=msg; }
+
+// Detector independiente de pinch a nivel document
+document.addEventListener('touchstart', function(e){
+  if(e.touches.length >= 2){
+    pinchEndTime = Date.now();
+    dbg('DOC pinch START ' + pinchEndTime);
+  }
+}, true);
+document.addEventListener('touchend', function(e){
+  if(e.touches.length < 2 && (Date.now() - pinchEndTime) < 2000){
+    pinchEndTime = Date.now();
+    dbg('DOC pinch END ' + pinchEndTime);
+  }
+}, true);
 
 var stage  = document.getElementById('stage');
 var world  = document.getElementById('world');
