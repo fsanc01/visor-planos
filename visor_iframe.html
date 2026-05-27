@@ -380,7 +380,7 @@ function selectPin(id, center){
   var d = DEVICES.filter(function(x){ return x.id===id; })[0];
   if(!d) return;
   if(center){
-    var sx=d.x/vbW*pdfW, sy=(IS_IMAGE ? d.y/vbH*pdfH : (vbH-d.y)/vbH*pdfH);
+    var sx=d.x/vbW*pdfW, sy=IS_IMAGE ? d.y/vbH*pdfH : (vbH-d.y)/vbH*pdfH;
     var r=stage.getBoundingClientRect();
     ox=r.width/2-sx*scale; oy=r.height*0.38-sy*scale; apply();
   }
