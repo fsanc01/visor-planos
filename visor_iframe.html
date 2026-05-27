@@ -145,6 +145,27 @@ var TYPES = {
 };
 var STC = {OK:"#3ddc97","Degr.":"#ffb454","Falla":"#ff6b6b"};
 
+// Status visual config: color + icon path
+var STATUS_STYLE = {
+  'instalado': {
+    c: '#3ddc97',
+    icon: '<polyline points="-5,0 -1.5,4 5,-4" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>'
+  },
+  'pendiente': {
+    c: '#ffb454',
+    icon: '<line x1="0" y1="-4.5" x2="0" y2="1.5" stroke="white" stroke-width="2.2" stroke-linecap="round"/><circle cx="0" cy="4.5" r="1.2" fill="white"/>'
+  },
+  'falla': {
+    c: '#ff6b6b',
+    icon: '<line x1="-4" y1="-4" x2="4" y2="4" stroke="white" stroke-width="2.2" stroke-linecap="round"/><line x1="4" y1="-4" x2="-4" y2="4" stroke="white" stroke-width="2.2" stroke-linecap="round"/>'
+  }
+};
+function getStatusStyle(st){
+  if(!st) return STATUS_STYLE['pendiente'];
+  var k = st.toLowerCase();
+  return STATUS_STYLE[k] || STATUS_STYLE['pendiente'];
+}
+
 /* ─── Estado del visor ───────────────────────────────────────────────────── */
 var scale=1, baseScale=1, ox=0, oy=0;
 var pdfW=0, pdfH=0, vbW=0, vbH=0;
@@ -233,7 +254,7 @@ if(!PDF_URL){
 /* ─── Pins ───────────────────────────────────────────────────────────────── */
 function drawPins(){
   DEVICES.forEach(function(d){
-    var col = (TYPES[d.t] || TYPES.sen).c;
+    var ss  = getStatusStyle(d.st);
     var yy  = IS_IMAGE ? d.y : (vbH - d.y);
     var g   = document.createElementNS(svg.namespaceURI,'g');
     g.setAttribute('transform','translate('+d.x+','+yy+')');
@@ -241,9 +262,9 @@ function drawPins(){
     g.style.pointerEvents = 'all';
     g.dataset.id = d.id;
     g.innerHTML =
-      '<circle r="22" fill="transparent"/>'+
-      '<circle r="14" fill="'+col+'" fill-opacity=".2" stroke="'+col+'" stroke-width="2.5"/>'+
-      '<circle r="6" fill="'+col+'"/>';
+      '<circle r="20" fill="transparent"/>'+        // hit area
+      '<circle r="11" fill="'+ss.c+'"/>'+           // solid circle
+      ss.icon;                                       // icon inside
     var handler = function(e){ e.stopPropagation(); e.preventDefault(); selectPin(d.id, true); };
     g.addEventListener('click',      handler);
     g.addEventListener('touchend',   handler, {passive:false});
