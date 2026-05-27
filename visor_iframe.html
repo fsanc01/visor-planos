@@ -57,6 +57,8 @@
 <body>
 
 <div id="loading"><div class="spinner"></div><p>Cargando plano…</p></div>
+<div id="dbg" style="position:fixed;top:0;left:0;right:0;z-index:99;background:rgba(0,0,0,.75);
+  color:#3ddc97;font-size:11px;font-family:monospace;padding:4px 8px;pointer-events:none"></div>
 <div id="error"><h2>No se pudo cargar el plano</h2><p id="error-msg"></p></div>
 
 <div id="stage">
@@ -146,6 +148,7 @@ var scale=1, baseScale=1, ox=0, oy=0;
 var pdfW=0, pdfH=0, vbW=0, vbH=0;
 var selected=null, pageViewport=null;
 var pinchEndTime=0;  // timestamp del ultimo pinch para ignorar clicks accidentales
+function dbg(msg){ var el=document.getElementById('dbg'); if(el) el.textContent=msg; }
 
 var stage  = document.getElementById('stage');
 var world  = document.getElementById('world');
@@ -313,7 +316,7 @@ var t0=null, d0=0, ox0=0, oy0=0, s0=0;
 stage.addEventListener('touchstart', function(e){
   if(e.touches.length===2){
     e.preventDefault();
-    pinchEndTime = Date.now(); // desde que empieza el pinch bloqueamos clicks
+    pinchEndTime = Date.now(); dbg('pinch START t='+pinchEndTime); // desde que empieza el pinch bloqueamos clicks
     var t=e.touches;
     t0={x:(t[0].clientX+t[1].clientX)/2, y:(t[0].clientY+t[1].clientY)/2};
     d0=Math.hypot(t[1].clientX-t[0].clientX, t[1].clientY-t[0].clientY);
@@ -323,7 +326,7 @@ stage.addEventListener('touchstart', function(e){
 stage.addEventListener('touchend', function(e){
   if(t0 !== null && e.touches.length < 2){
     // El primer dedo se despega (quedan menos de 2) — marcamos el tiempo y bloqueamos clicks
-    pinchEndTime = Date.now();
+    pinchEndTime = Date.now(); dbg('pinch END t='+pinchEndTime);
     t0 = null;
   }
 });
