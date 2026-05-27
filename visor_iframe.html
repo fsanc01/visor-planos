@@ -304,8 +304,9 @@ stage.addEventListener('pointerup', function(){
   drag=null; stage.classList.remove('grab');
 });
 stage.addEventListener('click', function(e){
+  if(Date.now()-pinchEndTime < 400){ e.stopPropagation(); e.preventDefault(); return; }
   if(e.target===stage||e.target===world||e.target.id==='pdfCanvas') deselect();
-});
+}, true);  // true = capture phase, intercepts before pin listeners
 
 // Pinch-to-zoom táctil
 var t0=null, d0=0, ox0=0, oy0=0, s0=0;
