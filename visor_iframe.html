@@ -145,6 +145,7 @@ var STC = {OK:"#3ddc97","Degr.":"#ffb454","Falla":"#ff6b6b"};
 var scale=1, baseScale=1, ox=0, oy=0;
 var pdfW=0, pdfH=0, vbW=0, vbH=0;
 var selected=null, pageViewport=null;
+var pinchEndTime=0;  // timestamp del ultimo pinch para ignorar clicks accidentales
 
 var stage  = document.getElementById('stage');
 var world  = document.getElementById('world');
@@ -317,6 +318,13 @@ stage.addEventListener('touchstart', function(e){
     ox0=ox; oy0=oy; s0=scale;
   }
 },{passive:false});
+stage.addEventListener('touchend', function(e){
+  if(t0 !== null){
+    pinchEndTime = Date.now();  // marca cuando termino el pinch
+    t0 = null;
+  }
+});
+
 stage.addEventListener('touchmove', function(e){
   if(e.touches.length===2 && t0){
     e.preventDefault();
