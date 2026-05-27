@@ -162,8 +162,10 @@ var STATUS_STYLE = {
 };
 function getStatusStyle(st){
   if(!st) return STATUS_STYLE['pendiente'];
-  var k = st.toLowerCase();
-  return STATUS_STYLE[k] || STATUS_STYLE['pendiente'];
+  var k = st.toLowerCase().replace(/[^a-z]/g,''); // elimina comillas y caracteres raros
+  if(k === 'ok' || k === 'instalado') return STATUS_STYLE['instalado'];
+  if(k === 'falla' || k === 'confalla' || k === 'error') return STATUS_STYLE['falla'];
+  return STATUS_STYLE['pendiente']; // default para pendiente, vacío, o cualquier otro valor
 }
 
 /* ─── Estado del visor ───────────────────────────────────────────────────── */
