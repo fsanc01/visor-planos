@@ -80,6 +80,27 @@
   <div id="pop-body"></div>
 </div>
 
+<!-- WebSync for Bubble Mobile - WebView Web element -->
+<script>
+// WebSync Send Text function - comunica con Bubble Mobile via WebView Native
+function wsSendText(text) {
+  try {
+    // React Native WebView bridge
+    if (window.ReactNativeWebView) {
+      window.ReactNativeWebView.postMessage(JSON.stringify({
+        type: 'text',
+        value: text
+      }));
+    }
+    // Fallback para testing en browser normal
+    else if (window.parent !== window) {
+      window.parent.postMessage({type: 'text', value: text}, '*');
+    }
+  } catch(e) {
+    console.log('WebSync send error:', e);
+  }
+}
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 /* ─── Leer parámetros de la URL ──────────────────────────────────────────────
@@ -331,7 +352,7 @@ function selectPin(id, center){
     rowSt('Estado',  d.st||'—')+
     '<button id="pop-update">Update</button>';
   document.getElementById('pop-update').onclick = function(){
-    window.location.hash = 'update:' + d.id;
+    wsSendText(d.id);
   };
   pop.classList.add('show');
 }
