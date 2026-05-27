@@ -256,7 +256,8 @@ function rescalePins(){
 }
 
 /* ─── Transform ──────────────────────────────────────────────────────────── */
-function apply(){
+function apply(animate){
+  world.style.transition = animate ? 'transform 0.25s cubic-bezier(0.25,0.46,0.45,0.94)' : 'none';
   world.style.transform = 'translate('+ox+'px,'+oy+'px) scale('+scale+')';
   rescalePins();
   if(selected) placePopup();
@@ -271,10 +272,10 @@ function fit(){
   apply();
 }
 
-function zoomAt(cx,cy,f){
+function zoomAt(cx,cy,f,animate){
   var nx = scale*f;
   if(nx < baseScale*0.4 || nx > baseScale*14) return;
-  ox = cx-(cx-ox)*f; oy = cy-(cy-oy)*f; scale = nx; apply();
+  ox = cx-(cx-ox)*f; oy = cy-(cy-oy)*f; scale = nx; apply(animate);
 }
 
 /* ─── Eventos de navegación ─────────────────────────────────────────────── */
@@ -303,9 +304,8 @@ stage.addEventListener('pointerup', function(){
   drag=null; stage.classList.remove('grab');
 });
 stage.addEventListener('click', function(e){
-  if(Date.now()-pinchEndTime < 400){ e.stopPropagation(); e.preventDefault(); return; }
   if(e.target===stage||e.target===world||e.target.id==='pdfCanvas') deselect();
-}, true);  // true = capture phase, intercepts before pin listeners
+});
 
 // Pinch-to-zoom táctil
 var t0=null, d0=0, ox0=0, oy0=0, s0=0;
@@ -320,15 +320,10 @@ stage.addEventListener('touchstart', function(e){
   }
 },{passive:false});
 stage.addEventListener('touchend', function(e){
-  if(t0 !== null && e.touches.length < 2){
-    // El primer dedo se despega (quedan menos de 2) — marcamos el tiempo y bloqueamos clicks
-    pinchEndTime = Date.now(); dbg('pinch END t='+pinchEndTime);
-    t0 = null;
-  }
+  if(t0 !== null && e.touches.length < 2) t0 = null;
 });
-
 stage.addEventListener('touchcancel', function(e){
-  if(t0 !== null){ pinchEndTime = Date.now(); t0 = null; }
+  t0 = null;
 });
 
 stage.addEventListener('touchmove', function(e){
