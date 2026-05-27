@@ -57,8 +57,6 @@
 <body>
 
 <div id="loading"><div class="spinner"></div><p>Cargando plano…</p></div>
-<div id="dbg" style="position:fixed;top:0;left:0;right:0;z-index:99;background:rgba(0,0,0,.75);
-  color:#3ddc97;font-size:11px;font-family:monospace;padding:4px 8px;pointer-events:none"></div>
 <div id="error"><h2>No se pudo cargar el plano</h2><p id="error-msg"></p></div>
 
 <div id="stage">
@@ -147,34 +145,6 @@ var STC = {OK:"#3ddc97","Degr.":"#ffb454","Falla":"#ff6b6b"};
 var scale=1, baseScale=1, ox=0, oy=0;
 var pdfW=0, pdfH=0, vbW=0, vbH=0;
 var selected=null, pageViewport=null;
-var pinchEndTime=0;
-var isPinching=false;
-var pinchTimer=null;
-function dbg(msg){ var el=document.getElementById('dbg'); if(el) el.textContent=msg; }
-
-// Detector independiente de pinch a nivel document
-document.addEventListener('touchstart', function(e){
-  if(e.touches.length >= 2){
-    isPinching = true;
-    pinchEndTime = Date.now();
-    if(pinchTimer) clearTimeout(pinchTimer);
-    dbg('DOC pinch START - BLOQUEANDO');
-  }
-}, true);
-document.addEventListener('touchmove', function(e){
-  if(e.touches.length >= 2){
-    isPinching = true;
-    if(pinchTimer) clearTimeout(pinchTimer);
-  }
-}, true);
-document.addEventListener('touchend', function(e){
-  if(isPinching){
-    pinchEndTime = Date.now();
-    if(pinchTimer) clearTimeout(pinchTimer);
-    pinchTimer = setTimeout(function(){ isPinching=false; dbg('pinch cleared'); }, 800);
-    dbg('DOC pinch END - bloqueando 800ms');
-  }
-}, true);
 
 var stage  = document.getElementById('stage');
 var world  = document.getElementById('world');
@@ -342,7 +312,7 @@ var t0=null, d0=0, ox0=0, oy0=0, s0=0;
 stage.addEventListener('touchstart', function(e){
   if(e.touches.length===2){
     e.preventDefault();
-    pinchEndTime = Date.now(); dbg('pinch START t='+pinchEndTime); // desde que empieza el pinch bloqueamos clicks
+
     var t=e.touches;
     t0={x:(t[0].clientX+t[1].clientX)/2, y:(t[0].clientY+t[1].clientY)/2};
     d0=Math.hypot(t[1].clientX-t[0].clientX, t[1].clientY-t[0].clientY);
@@ -374,8 +344,8 @@ stage.addEventListener('touchmove', function(e){
 },{passive:false});
 
 // Botones
-document.getElementById('zin').onclick  = function(){ var r=stage.getBoundingClientRect(); zoomAt(r.width/2,r.height/2,1.25); };
-document.getElementById('zout').onclick = function(){ var r=stage.getBoundingClientRect(); zoomAt(r.width/2,r.height/2,1/1.25); };
+document.getElementById('zin').onclick  = function(){ var r=stage.getBoundingClientRect(); zoomAt(r.width/2,r.height/2,1.25,true); };
+document.getElementById('zout').onclick = function(){ var r=stage.getBoundingClientRect(); zoomAt(r.width/2,r.height/2,1/1.25,true); };
 document.getElementById('fit').onclick  = fit;
 
 /* ─── Popup ──────────────────────────────────────────────────────────────── */
