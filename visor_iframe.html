@@ -267,7 +267,7 @@ function drawPins(){
       '<circle r="20" fill="transparent"/>'+        // hit area
       '<circle r="11" fill="'+ss.c+'"/>'+           // solid circle
       ss.icon;                                       // icon inside
-    // Doble tap / doble click para abrir el popup
+    // Doble tap para abrir el popup
     var lastTap = 0;
     g.addEventListener('click', function(e){
       e.stopPropagation();
@@ -275,12 +275,6 @@ function drawPins(){
       if(now - lastTap < 350){ selectPin(d.id, true); }
       lastTap = now;
     });
-    g.addEventListener('touchend', function(e){
-      e.stopPropagation(); e.preventDefault();
-      var now = Date.now();
-      if(now - lastTap < 350){ selectPin(d.id, true); }
-      lastTap = now;
-    }, {passive:false});
     svg.appendChild(g);
   });
 }
