@@ -36,10 +36,14 @@
   #pop-body .k{color:#8b93a7}
   #pop-body .v{font-weight:600}
   .st{padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700}
-  #pop-update{width:100%;margin-top:12px;padding:11px;background:#3ddc97;color:#0f1115;
-    border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;
-    -webkit-tap-highlight-color:transparent}
-  #pop-update:active{background:#2fc882}
+  .pop-actions{display:flex;gap:8px;margin-top:12px}
+  .pop-btn{flex:1;padding:11px 8px;border:none;border-radius:10px;font-size:13px;
+    font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    gap:6px;-webkit-tap-highlight-color:transparent}
+  #btn-installed{background:#3ddc97;color:#0f1115}
+  #btn-installed:active{background:#2fc882}
+  #btn-issue{background:#ff6b6b;color:#fff}
+  #btn-issue:active{background:#e05555}
 
   #loading{position:fixed;inset:0;background:#0f1115;display:flex;flex-direction:column;
     align-items:center;justify-content:center;z-index:20;gap:14px}
@@ -256,21 +260,10 @@ function rescalePins(){
 }
 
 /* ─── Transform ──────────────────────────────────────────────────────────── */
-function apply(animate){
-  if(animate){
-    world.style.transition = 'transform 0.25s cubic-bezier(0.25,0.46,0.45,0.94)';
-    world.style.transform = 'translate('+ox+'px,'+oy+'px) scale('+scale+')';
-    setTimeout(function(){
-      world.style.transition = 'none';
-      rescalePins();
-      if(selected) placePopup();
-    }, 260);
-  } else {
-    world.style.transition = 'none';
-    world.style.transform = 'translate('+ox+'px,'+oy+'px) scale('+scale+')';
-    rescalePins();
-    if(selected) placePopup();
-  }
+function apply(){
+  world.style.transform = 'translate('+ox+'px,'+oy+'px) scale('+scale+')';
+  rescalePins();
+  if(selected) placePopup();
 }
 
 function fit(){
@@ -282,10 +275,10 @@ function fit(){
   apply();
 }
 
-function zoomAt(cx,cy,f,animate){
+function zoomAt(cx,cy,f){
   var nx = scale*f;
   if(nx < baseScale*0.4 || nx > baseScale*14) return;
-  ox = cx-(cx-ox)*f; oy = cy-(cy-oy)*f; scale = nx; apply(animate);
+  ox = cx-(cx-ox)*f; oy = cy-(cy-oy)*f; scale = nx; apply();
 }
 
 /* ─── Eventos de navegación ─────────────────────────────────────────────── */
@@ -349,8 +342,8 @@ stage.addEventListener('touchmove', function(e){
 },{passive:false});
 
 // Botones
-document.getElementById('zin').onclick  = function(){ var r=stage.getBoundingClientRect(); zoomAt(r.width/2,r.height/2,1.25,true); };
-document.getElementById('zout').onclick = function(){ var r=stage.getBoundingClientRect(); zoomAt(r.width/2,r.height/2,1/1.25,true); };
+document.getElementById('zin').onclick  = function(){ var r=stage.getBoundingClientRect(); zoomAt(r.width/2,r.height/2,1.25); };
+document.getElementById('zout').onclick = function(){ var r=stage.getBoundingClientRect(); zoomAt(r.width/2,r.height/2,1/1.25); };
 document.getElementById('fit').onclick  = fit;
 
 /* ─── Popup ──────────────────────────────────────────────────────────────── */
@@ -369,9 +362,21 @@ function selectPin(id, center){
     row('Ubicación', d.room||'—')+
     row('IP',        d.ip||'—')+
     rowSt('Estado',  d.st||'—')+
-    '<button id="pop-update">Update</button>';
-  document.getElementById('pop-update').onclick = function(){
-    wsSendText(d.id);
+    '<div class="pop-actions">'+
+    '<button class="pop-btn" id="btn-installed">'+
+      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'+
+      'Installed'+
+    '</button>'+
+    '<button class="pop-btn" id="btn-issue">'+
+      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'+
+      'Issue'+
+    '</button>'+
+    '</div>';
+  document.getElementById('btn-installed').onclick = function(){
+    wsSendText(d.id + '|installed');
+  };
+  document.getElementById('btn-issue').onclick = function(){
+    wsSendText(d.id + '|issue');
   };
   pop.classList.add('show');
 }
