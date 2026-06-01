@@ -457,7 +457,6 @@ function selectPin(id, center){
   document.getElementById('pop-body').innerHTML =
     row('Categoría',  (cfg ? cfg.label : d.category)||'—')+
     row('Ubicación',  d.room||'—')+
-    row('IP',         d.ip||'—')+
     rowSt('Estado',   currentStatus||'—')+
     '<div class="pop-actions">'+
     '<button class="pop-btn" id="btn-installed">'+
