@@ -478,9 +478,17 @@ function selectPin(id, center){
   pop.classList.add('show');
 }
 function row(k,v){ return '<div class="row"><span class="k">'+k+'</span><span class="v">'+v+'</span></div>'; }
-function rowSt(k,v){ var c=STC[v]||'#8b93a7';
+function rowSt(k,v){
+  var c = STATUS_COLOR.pending;
+  if(!v) { v = '—'; }
+  else {
+    var k2 = v.toLowerCase().replace(/[^a-z]/g,'');
+    if(k2==='installed'||k2==='instalado'||k2==='ok') c = STATUS_COLOR.installed;
+    else if(k2==='issue'||k2==='falla'||k2==='error') c = STATUS_COLOR.issue;
+  }
   return '<div class="row"><span class="k">'+k+'</span>'+
-         '<span class="v"><span class="st" style="background:'+c+'22;color:'+c+'">'+v+'</span></span></div>'; }
+         '<span class="v"><span class="st" style="background:'+c+'22;color:'+c+'">'+v+'</span></span></div>';
+}
 
 function placePopup(){ /* en mobile el popup es fijo (fixed bottom), no necesita reposicionarse */ }
 function deselect(){ selected=null; pop.classList.remove('show'); }
