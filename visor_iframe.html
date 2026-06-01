@@ -122,14 +122,14 @@ var PDF_URL = params.get('pdf');
 var MODE    = params.get('mode') || 'devices'; // 'devices' o 'cabling'
 var DEVICES = [];
 
-// Formato pipe: id|tipo|x|y|ambiente|ip|statusDevice|statusCabling|category
+// Formato pipe: id|tipo|x|y|ambiente|category|status
+// p[0]=id p[1]=tipo p[2]=x p[3]=y p[4]=ambiente p[5]=category p[6]=status
 (function(){
   try {
     var full = window.location.href;
     var idx  = full.indexOf('&devices=');
     if(idx === -1) idx = full.indexOf('?devices=');
     if(idx === -1) return;
-    // Cortar antes del siguiente parametro si lo hay
     var raw = full.substring(idx + 9);
     var nextParam = raw.indexOf('&mode=');
     if(nextParam !== -1) raw = raw.substring(0, nextParam);
@@ -143,10 +143,9 @@ var DEVICES = [];
         x:            parseFloat(p[2]) || 0,
         y:            parseFloat(p[3]) || 0,
         room:         p[4] || '',
-        ip:           p[5] || '',
+        category:     p[5] || '',
         statusDevice: p[6] || 'pending',
-        statusCabling:p[7] || 'pending',
-        category:     p[8] || ''
+        statusCabling:p[6] || 'pending'
       };
     });
   } catch(e){ DEVICES = []; }
