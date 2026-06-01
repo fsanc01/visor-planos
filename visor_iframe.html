@@ -119,53 +119,120 @@ function wsSendText(text) {
    ─────────────────────────────────────────────────────────────────────────── */
 var params  = new URLSearchParams(window.location.search);
 var PDF_URL = params.get('pdf');
+var MODE    = params.get('mode') || 'devices'; // 'devices' o 'cabling'
 var DEVICES = [];
 
+// Formato pipe: id|tipo|x|y|ambiente|ip|statusDevice|statusCabling|category
 (function(){
   try {
     var full = window.location.href;
     var idx  = full.indexOf('&devices=');
     if(idx === -1) idx = full.indexOf('?devices=');
     if(idx === -1) return;
-    var raw = decodeURIComponent(full.substring(idx + 9));
+    // Cortar antes del siguiente parametro si lo hay
+    var raw = full.substring(idx + 9);
+    var nextParam = raw.indexOf('&mode=');
+    if(nextParam !== -1) raw = raw.substring(0, nextParam);
+    raw = decodeURIComponent(raw);
     if(!raw) return;
     DEVICES = raw.split('~').filter(Boolean).map(function(item){
       var p = item.split('|');
-      return {id:p[0]||'',t:p[1]||'sen',x:parseFloat(p[2])||0,y:parseFloat(p[3])||0,room:p[4]||'',ip:p[5]||'',st:p[6]||''};
+      return {
+        id:           p[0] || '',
+        t:            p[1] || '',
+        x:            parseFloat(p[2]) || 0,
+        y:            parseFloat(p[3]) || 0,
+        room:         p[4] || '',
+        ip:           p[5] || '',
+        statusDevice: p[6] || 'pending',
+        statusCabling:p[7] || 'pending',
+        category:     p[8] || ''
+      };
     });
   } catch(e){ DEVICES = []; }
 })();
 
-/* ─── Tipos de dispositivo ───────────────────────────────────────────────── */
-var TYPES = {
-  cam: {c:"#3ddc97", l:"Cámara IP"},
-  ap:  {c:"#5b9dff", l:"Access Point"},
-  sen: {c:"#ffb454", l:"Sensor"},
-  pan: {c:"#ff6b6b", l:"Tablero/Panel"}
+/* ─── Status colors ─────────────────────────────────────────────────────── */
+var STATUS_COLOR = {
+  installed: '#3ddc97',
+  pending:   '#ffb454',
+  issue:     '#ff6b6b'
 };
-var STC = {OK:"#3ddc97","Degr.":"#ffb454","Falla":"#ff6b6b"};
+function getColor(st){
+  if(!st) return STATUS_COLOR.pending;
+  var k = st.toLowerCase().replace(/[^a-z]/g,'');
+  if(k==='installed'||k==='instalado'||k==='ok') return STATUS_COLOR.installed;
+  if(k==='issue'||k==='falla'||k==='error')      return STATUS_COLOR.issue;
+  return STATUS_COLOR.pending;
+}
 
-// Status visual config: color + icon path
-var STATUS_STYLE = {
-  'instalado': {
-    c: '#3ddc97',
-    icon: '<polyline points="-5,0 -1.5,4 5,-4" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>'
-  },
-  'pendiente': {
-    c: '#ffb454',
-    icon: '<line x1="0" y1="-4.5" x2="0" y2="1.5" stroke="white" stroke-width="2.2" stroke-linecap="round"/><circle cx="0" cy="4.5" r="1.2" fill="white"/>'
-  },
-  'falla': {
-    c: '#ff6b6b',
-    icon: '<line x1="-4" y1="-4" x2="4" y2="4" stroke="white" stroke-width="2.2" stroke-linecap="round"/><line x1="4" y1="-4" x2="-4" y2="4" stroke="white" stroke-width="2.2" stroke-linecap="round"/>'
-  }
+/* ─── Iconos SVG por categoría y modo ──────────────────────────────────────
+   Todos los paths están en un viewBox centrado en 0,0 escala ~11px
+   ─────────────────────────────────────────────────────────────────────── */
+var ICONS = {
+  // Cámara (CCTV en modo devices)
+  cctv_device:
+    '<circle cx="-1" cy="0" r="4" fill="none" stroke="white" stroke-width="1.8"/>'+
+    '<polygon points="3,-3 8,0 3,3" fill="white"/>'+
+    '<line x1="-1" y1="-7" x2="-1" y2="-4.5" stroke="white" stroke-width="1.5"/>',
+
+  // Wifi (WAP en modo devices)
+  wap_device:
+    '<path d="M-7,-2 Q0,-9 7,-2" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"/>'+
+    '<path d="M-4,2 Q0,-3 4,2" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"/>'+
+    '<circle cx="0" cy="5.5" r="1.5" fill="white"/>',
+
+  // Puerta (AC - access control)
+  ac_device:
+    '<rect x="-5" y="-7" width="10" height="13" rx="1" fill="none" stroke="white" stroke-width="1.8"/>'+
+    '<circle cx="3" cy="0" r="1.2" fill="white"/>',
+
+  // Speaker (AV - audiovisual)
+  av_device:
+    '<rect x="-4" y="-5" width="5" height="10" rx="1" fill="none" stroke="white" stroke-width="1.8"/>'+
+    '<path d="M3,-3 Q7,0 3,3" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"/>'+
+    '<path d="M3,-6 Q10,0 3,6" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"/>',
+
+  // Triángulo (CCTV, WAP, Data en modo cabling)
+  triangle_cabling:
+    '<polygon points="0,-7 7,6 -7,6" fill="none" stroke="white" stroke-width="2" stroke-linejoin="round"/>',
+
+  // Puerta cabling (AC)
+  ac_cabling:
+    '<rect x="-5" y="-7" width="10" height="13" rx="1" fill="none" stroke="white" stroke-width="1.8"/>'+
+    '<circle cx="3" cy="0" r="1.2" fill="white"/>',
+
+  // Speaker cabling (AV)
+  av_cabling:
+    '<rect x="-4" y="-5" width="5" height="10" rx="1" fill="none" stroke="white" stroke-width="1.8"/>'+
+    '<path d="M3,-3 Q7,0 3,3" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"/>'+
+    '<path d="M3,-6 Q10,0 3,6" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"/>'
 };
-function getStatusStyle(st){
-  if(!st) return STATUS_STYLE['pendiente'];
-  var k = st.toLowerCase().replace(/[^a-z]/g,''); // elimina comillas y caracteres raros
-  if(k === 'ok' || k === 'instalado') return STATUS_STYLE['instalado'];
-  if(k === 'falla' || k === 'confalla' || k === 'error') return STATUS_STYLE['falla'];
-  return STATUS_STYLE['pendiente']; // default para pendiente, vacío, o cualquier otro valor
+
+function getPinConfig(d){
+  var cat = (d.category || '').toUpperCase();
+  var mode = MODE;
+
+  if(mode === 'devices'){
+    // Data no se muestra en modo devices
+    if(cat === 'DATA') return null;
+    var st = getColor(d.statusDevice);
+    if(cat === 'CCTV') return {c: st, icon: ICONS.cctv_device,    label: 'CCTV'};
+    if(cat === 'WAP')  return {c: st, icon: ICONS.wap_device,     label: 'WAP'};
+    if(cat === 'AC')   return {c: st, icon: ICONS.ac_device,      label: 'Access Control'};
+    if(cat === 'AV')   return {c: st, icon: ICONS.av_device,      label: 'Audiovisual'};
+    // fallback
+    return {c: st, icon: ICONS.cctv_device, label: cat};
+  } else {
+    // modo cabling
+    var st = getColor(d.statusCabling);
+    if(cat === 'CCTV') return {c: st, icon: ICONS.triangle_cabling, label: 'CCTV cabling'};
+    if(cat === 'WAP')  return {c: st, icon: ICONS.triangle_cabling, label: 'WAP cabling'};
+    if(cat === 'DATA') return {c: st, icon: ICONS.triangle_cabling, label: 'Data cabling'};
+    if(cat === 'AC')   return {c: st, icon: ICONS.ac_cabling,       label: 'AC cabling'};
+    if(cat === 'AV')   return {c: st, icon: ICONS.av_cabling,       label: 'AV cabling'};
+    return {c: st, icon: ICONS.triangle_cabling, label: cat};
+  }
 }
 
 /* ─── Estado del visor ───────────────────────────────────────────────────── */
@@ -256,7 +323,8 @@ if(!PDF_URL){
 /* ─── Pins ───────────────────────────────────────────────────────────────── */
 function drawPins(){
   DEVICES.forEach(function(d){
-    var ss  = getStatusStyle(d.st);
+    var cfg = getPinConfig(d);
+    if(!cfg) return; // omitir si no se muestra en este modo
     var yy  = IS_IMAGE ? d.y : (vbH - d.y);
     var g   = document.createElementNS(svg.namespaceURI,'g');
     g.setAttribute('transform','translate('+d.x+','+yy+')');
@@ -264,10 +332,9 @@ function drawPins(){
     g.style.pointerEvents = 'all';
     g.dataset.id = d.id;
     g.innerHTML =
-      '<circle r="20" fill="transparent"/>'+        // hit area
-      '<circle r="11" fill="'+ss.c+'"/>'+           // solid circle
-      ss.icon;                                       // icon inside
-    // Doble tap para abrir el popup
+      '<circle r="20" fill="transparent"/>'+
+      '<circle r="11" fill="'+cfg.c+'"/>'+
+      cfg.icon;
     var lastTap = 0;
     g.addEventListener('click', function(e){
       e.stopPropagation();
@@ -384,12 +451,14 @@ function selectPin(id, center){
     var r=stage.getBoundingClientRect();
     ox=r.width/2-sx*scale; oy=r.height*0.38-sy*scale; apply();
   }
+  var cfg = getPinConfig(d);
+  var currentStatus = MODE === 'devices' ? d.statusDevice : d.statusCabling;
   document.getElementById('pop-id').textContent = d.id;
   document.getElementById('pop-body').innerHTML =
-    row('Tipo',      (TYPES[d.t]||TYPES.sen).l)+
-    row('Ubicación', d.room||'—')+
-    row('IP',        d.ip||'—')+
-    rowSt('Estado',  d.st||'—')+
+    row('Categoría',  (cfg ? cfg.label : d.category)||'—')+
+    row('Ubicación',  d.room||'—')+
+    row('IP',         d.ip||'—')+
+    rowSt('Estado',   currentStatus||'—')+
     '<div class="pop-actions">'+
     '<button class="pop-btn" id="btn-installed">'+
       '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'+
