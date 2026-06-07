@@ -40,10 +40,12 @@
   .pop-btn{flex:1;padding:11px 8px;border:none;border-radius:10px;font-size:13px;
     font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;
     gap:6px;-webkit-tap-highlight-color:transparent}
-  #btn-installed{background:#3ddc97;color:#0f1115}
-  #btn-installed:active{background:#2fc882}
-  #btn-issue{background:#ff6b6b;color:#fff}
-  #btn-issue:active{background:#e05555}
+  .btn-installed{background:#3ddc97;color:#0f1115}
+  .btn-installed:active{background:#2fc882}
+  .btn-issue{background:#ff6b6b;color:#fff}
+  .btn-issue:active{background:#e05555}
+  .btn-pending{background:#e8e8e8;color:#555}
+  .btn-pending:active{background:#d5d5d5}
 
   #loading{position:fixed;inset:0;background:#0f1115;display:flex;flex-direction:column;
     align-items:center;justify-content:center;z-index:20;gap:14px}
@@ -457,22 +459,42 @@ function selectPin(id, center){
     row('Categoría',  (cfg ? cfg.label : d.category)||'—')+
     row('Ubicación',  d.room||'—')+
     rowSt('Estado',   currentStatus||'—')+
-    '<div class="pop-actions">'+
-    '<button class="pop-btn" id="btn-installed">'+
-      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'+
-      'Installed'+
-    '</button>'+
-    '<button class="pop-btn" id="btn-issue">'+
-      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'+
-      'Issue'+
-    '</button>'+
-    '</div>';
-  document.getElementById('btn-installed').onclick = function(){
-    wsSendText(d.id + '|installed');
-  };
-  document.getElementById('btn-issue').onclick = function(){
-    wsSendText(d.id + '|issue');
-  };
+    (function(){
+    var st = (currentStatus||'').toLowerCase().replace(/[^a-z]/g,'');
+    var svgCheck = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+    var svgIssue = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+    var svgBack  = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><line x1="4" y1="9" x2="20" y2="9"/></svg>';
+
+    var btns = [];
+    // pending → installed + issue
+    if(st === 'pending' || st === ''){
+      btns.push({cls:'btn-installed', icon:svgCheck, label:'Installed', action:'installed'});
+      btns.push({cls:'btn-issue',     icon:svgIssue, label:'Issue',     action:'issue'});
+    }
+    // installed → back to pending + issue
+    else if(st === 'installed'){
+      btns.push({cls:'btn-pending', icon:svgBack,  label:'Pending', action:'pending'});
+      btns.push({cls:'btn-issue',   icon:svgIssue, label:'Issue',   action:'issue'});
+    }
+    // issue → installed + back to pending
+    else if(st === 'issue'){
+      btns.push({cls:'btn-installed', icon:svgCheck, label:'Installed', action:'installed'});
+      btns.push({cls:'btn-pending',   icon:svgBack,  label:'Pending',   action:'pending'});
+    }
+
+    var html = '<div class="pop-actions">';
+    btns.forEach(function(b){
+      html += '<button class="pop-btn '+b.cls+'" data-action="'+b.action+'">'+b.icon+b.label+'</button>';
+    });
+    html += '</div>';
+    document.getElementById('pop-body').innerHTML += html;
+
+    document.querySelectorAll('.pop-btn[data-action]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        wsSendText(d.id + '|' + this.dataset.action);
+      });
+    });
+  })();
   pop.classList.add('show');
 }
 function row(k,v){ return '<div class="row"><span class="k">'+k+'</span><span class="v">'+v+'</span></div>'; }
