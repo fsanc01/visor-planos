@@ -455,46 +455,39 @@ function selectPin(id, center){
   var cfg = getPinConfig(d);
   var currentStatus = MODE === 'devices' ? d.statusDevice : d.statusCabling;
   document.getElementById('pop-id').textContent = d.id;
+  // Contenido fijo del popup
   document.getElementById('pop-body').innerHTML =
     row('Categoría',  (cfg ? cfg.label : d.category)||'—')+
     row('Ubicación',  d.room||'—')+
-    rowSt('Estado',   currentStatus||'—')+
-    (function(){
-    var st = (currentStatus||'').toLowerCase().replace(/[^a-z]/g,'');
-    var svgCheck = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-    var svgIssue = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
-    var svgBack  = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><line x1="4" y1="9" x2="20" y2="9"/></svg>';
+    rowSt('Estado',   currentStatus||'—');
 
-    var btns = [];
-    // pending → installed + issue
-    if(st === 'pending' || st === ''){
-      btns.push({cls:'btn-installed', icon:svgCheck, label:'Installed', action:'installed'});
-      btns.push({cls:'btn-issue',     icon:svgIssue, label:'Issue',     action:'issue'});
-    }
-    // installed → back to pending + issue
-    else if(st === 'installed'){
-      btns.push({cls:'btn-pending', icon:svgBack,  label:'Pending', action:'pending'});
-      btns.push({cls:'btn-issue',   icon:svgIssue, label:'Issue',   action:'issue'});
-    }
-    // issue → installed + back to pending
-    else if(st === 'issue'){
-      btns.push({cls:'btn-installed', icon:svgCheck, label:'Installed', action:'installed'});
-      btns.push({cls:'btn-pending',   icon:svgBack,  label:'Pending',   action:'pending'});
-    }
-
-    var html = '<div class="pop-actions">';
-    btns.forEach(function(b){
-      html += '<button class="pop-btn '+b.cls+'" data-action="'+b.action+'">'+b.icon+b.label+'</button>';
+  // Botones dinámicos según status
+  var st = (currentStatus||'').toLowerCase().replace(/[^a-z]/g,'');
+  var svgCheck = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  var svgIssue = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+  var svgBack  = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><line x1="4" y1="9" x2="20" y2="9"/></svg>';
+  var btns = [];
+  if(st === 'pending' || st === ''){
+    btns.push({cls:'btn-installed', icon:svgCheck, label:'Installed', action:'installed'});
+    btns.push({cls:'btn-issue',     icon:svgIssue, label:'Issue',     action:'issue'});
+  } else if(st === 'installed'){
+    btns.push({cls:'btn-pending', icon:svgBack,  label:'Pending', action:'pending'});
+    btns.push({cls:'btn-issue',   icon:svgIssue, label:'Issue',   action:'issue'});
+  } else if(st === 'issue'){
+    btns.push({cls:'btn-installed', icon:svgCheck, label:'Installed', action:'installed'});
+    btns.push({cls:'btn-pending',   icon:svgBack,  label:'Pending',   action:'pending'});
+  }
+  var html = '<div class="pop-actions">';
+  btns.forEach(function(b){
+    html += '<button class="pop-btn '+b.cls+'" data-action="'+b.action+'">'+b.icon+b.label+'</button>';
+  });
+  html += '</div>';
+  document.getElementById('pop-body').innerHTML += html;
+  document.querySelectorAll('.pop-btn[data-action]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      wsSendText(d.id + '|' + this.dataset.action);
     });
-    html += '</div>';
-    document.getElementById('pop-body').innerHTML += html;
-
-    document.querySelectorAll('.pop-btn[data-action]').forEach(function(btn){
-      btn.addEventListener('click', function(){
-        wsSendText(d.id + '|' + this.dataset.action);
-      });
-    });
-  })();
+  });
   pop.classList.add('show');
 }
 function row(k,v){ return '<div class="row"><span class="k">'+k+'</span><span class="v">'+v+'</span></div>'; }
