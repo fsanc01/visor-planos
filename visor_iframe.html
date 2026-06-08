@@ -6,35 +6,36 @@
 <title>Visor de Planos</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{width:100%;height:100%;overflow:hidden;background:#0f1115;
-    font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#e8eaf0}
+  html,body{width:100%;height:100%;overflow:hidden;background:#f0ede8;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#1a1a1a}
 
   #stage{position:absolute;inset:0;cursor:grab;touch-action:none;overflow:hidden}
   #stage.grab{cursor:grabbing}
   #world{position:absolute;left:0;top:0;transform-origin:0 0}
-  #pdfCanvas{display:block;background:#fff;box-shadow:0 8px 40px rgba(0,0,0,.7)}
+  #pdfCanvas{display:block;background:#fff;box-shadow:0 4px 24px rgba(0,0,0,.12)}
   #pins{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
 
   #ctl{position:fixed;right:14px;bottom:24px;display:flex;flex-direction:column;gap:8px;z-index:10}
-  .btn{width:42px;height:42px;border-radius:10px;background:#161922;border:1px solid #262b38;
-    color:#e8eaf0;font-size:20px;cursor:pointer;display:flex;align-items:center;
-    justify-content:center;-webkit-tap-highlight-color:transparent}
+  .btn{width:42px;height:42px;border-radius:10px;background:#fff;border:1px solid #d0cdc6;
+    color:#444;font-size:20px;cursor:pointer;display:flex;align-items:center;
+    justify-content:center;-webkit-tap-highlight-color:transparent;
+    box-shadow:0 1px 4px rgba(0,0,0,.08)}
 
   #pop{position:fixed;left:14px;bottom:90px;right:14px;z-index:10;
-    background:#161922;border:1px solid #2d3347;border-radius:14px;
-    box-shadow:0 12px 40px rgba(0,0,0,.6);opacity:0;pointer-events:none;
+    background:#fff;border:1px solid #d0cdc6;border-radius:14px;
+    box-shadow:0 8px 32px rgba(0,0,0,.12);opacity:0;pointer-events:none;
     transition:opacity .16s,transform .16s;transform:translateY(8px)}
   #pop.show{opacity:1;pointer-events:all;transform:translateY(0)}
-  #pop-head{padding:13px 15px 10px;border-bottom:1px solid #262b38;
+  #pop-head{padding:13px 15px 10px;border-bottom:1px solid #e8e5e0;
     display:flex;align-items:center;justify-content:space-between}
-  #pop-id{font-weight:700;font-size:14px;font-family:monospace}
-  #pop-close{font-size:20px;cursor:pointer;color:#8b93a7;line-height:1;padding:2px 4px}
+  #pop-id{font-weight:700;font-size:14px;font-family:monospace;color:#1a1a1a}
+  #pop-close{font-size:20px;cursor:pointer;color:#999;line-height:1;padding:2px 4px}
   #pop-body{padding:12px 15px;font-size:13px;line-height:1.8}
   #pop-body .row{display:flex;justify-content:space-between;
-    border-bottom:1px dashed #1e2233;padding:4px 0}
+    border-bottom:1px dashed #e8e5e0;padding:4px 0}
   #pop-body .row:last-child{border-bottom:none}
-  #pop-body .k{color:#8b93a7}
-  #pop-body .v{font-weight:600}
+  #pop-body .k{color:#999}
+  #pop-body .v{font-weight:600;color:#1a1a1a}
   .st{padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700}
   .pop-actions{display:flex;gap:8px;margin-top:12px}
   .pop-btn{flex:1;padding:11px 8px;border:none;border-radius:10px;font-size:13px;
@@ -44,32 +45,33 @@
   .btn-installed:active{background:#2fc882}
   .btn-issue{background:#ff6b6b;color:#fff}
   .btn-issue:active{background:#e05555}
-  .btn-pending{background:#e8e8e8;color:#555}
-  .btn-pending:active{background:#d5d5d5}
+  .btn-pending{background:#f0ede8;color:#555;border:1px solid #d0cdc6}
+  .btn-pending:active{background:#e0ddd8}
 
   /* ── Action buttons (CO / RFI) ── */
   #action-btns{position:fixed;left:14px;bottom:24px;display:flex;flex-direction:column;
     gap:8px;z-index:10}
-  .action-btn{padding:0 14px;height:42px;border-radius:10px;background:#161922;
-    border:1px solid #262b38;color:#e8eaf0;font-size:12px;font-weight:600;
+  .action-btn{padding:0 14px;height:42px;border-radius:10px;background:#fff;
+    border:1px solid #d0cdc6;color:#444;font-size:12px;font-weight:600;
     cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent;
-    display:flex;align-items:center;gap:6px}
-  .action-btn.active{background:#1d2738;border-color:#5b9dff;color:#5b9dff}
+    display:flex;align-items:center;gap:6px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  .action-btn.active{background:#eff6ff;border-color:#5b9dff;color:#1a56db}
   .action-btn:active{opacity:.8}
 
-  /* ── Context bar (bottom instruction bar) ── */
+  /* ── Context bar ── */
   #ctx-bar{position:fixed;bottom:0;left:0;right:0;z-index:15;
-    background:#161922;border-top:1px solid #262b38;
-    padding:14px 16px 28px;display:none;flex-direction:column;gap:10px}
+    background:#fff;border-top:1px solid #d0cdc6;
+    padding:14px 16px 28px;display:none;flex-direction:column;gap:10px;
+    box-shadow:0 -4px 20px rgba(0,0,0,.08)}
   #ctx-bar.show{display:flex}
-  #ctx-title{font-size:13px;color:#8b93a7;text-align:center}
+  #ctx-title{font-size:13px;color:#666;text-align:center}
   #ctx-actions{display:flex;gap:8px}
   .ctx-btn{flex:1;padding:12px 8px;border:none;border-radius:10px;font-size:13px;
     font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;
     display:flex;align-items:center;justify-content:center;gap:6px}
-  .ctx-btn-primary{background:#5b9dff;color:#fff}
-  .ctx-btn-secondary{background:#1d2230;color:#e8eaf0;border:1px solid #262b38}
-  .ctx-btn-cancel{background:transparent;color:#8b93a7;border:1px solid #262b38}
+  .ctx-btn-primary{background:#1a56db;color:#fff}
+  .ctx-btn-secondary{background:#f0ede8;color:#1a1a1a;border:1px solid #d0cdc6}
+  .ctx-btn-cancel{background:transparent;color:#999;border:1px solid #d0cdc6}
   .ctx-btn-confirm{background:#3ddc97;color:#0f1115}
   .ctx-btn-deny{background:#ff6b6b;color:#fff}
 
@@ -85,17 +87,17 @@
   /* ── Select-item mode cursor ── */
   #stage.select-mode{cursor:crosshair}
 
-  #loading{position:fixed;inset:0;background:#0f1115;display:flex;flex-direction:column;
+  #loading{position:fixed;inset:0;background:#f0ede8;display:flex;flex-direction:column;
     align-items:center;justify-content:center;z-index:20;gap:14px}
-  #loading p{color:#8b93a7;font-size:13px}
-  .spinner{width:36px;height:36px;border:3px solid #262b38;border-top-color:#3ddc97;
+  #loading p{color:#999;font-size:13px}
+  .spinner{width:36px;height:36px;border:3px solid #d0cdc6;border-top-color:#1a56db;
     border-radius:50%;animation:spin .8s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
 
-  #error{position:fixed;inset:0;background:#0f1115;display:none;flex-direction:column;
+  #error{position:fixed;inset:0;background:#f0ede8;display:none;flex-direction:column;
     align-items:center;justify-content:center;z-index:20;gap:12px;padding:30px;text-align:center}
   #error h2{color:#ff6b6b;font-size:16px}
-  #error p{color:#8b93a7;font-size:13px;line-height:1.6}
+  #error p{color:#999;font-size:13px;line-height:1.6}
 </style>
 </head>
 <body>
@@ -257,12 +259,20 @@ var ICONS = {
   av_cabling:
     '<rect x="-4" y="-5" width="5" height="10" rx="1" fill="none" stroke="white" stroke-width="1.8"/>'+
     '<path d="M3,-3 Q7,0 3,3" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"/>'+
-    '<path d="M3,-6 Q10,0 3,6" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"/>'
+    '<path d="M3,-6 Q10,0 3,6" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"/>',
+
+  // CO y RFI: texto dentro del círculo
+  co_icon:  '<text y="4" text-anchor="middle" font-size="8" font-weight="700" font-family="monospace" fill="white">CO</text>',
+  rfi_icon: '<text y="4" text-anchor="middle" font-size="7" font-weight="700" font-family="monospace" fill="white">RFI</text>'
 };
 
 function getPinConfig(d){
   var cat = (d.category || '').toUpperCase();
   var mode = MODE;
+
+  // CO y RFI se muestran en ambos modos sin popup
+  if(cat === 'CO')  return {c: '#8b5cf6', icon: ICONS.co_icon,  label: 'Change Order', noPopup: true};
+  if(cat === 'RFI') return {c: '#f59e0b', icon: ICONS.rfi_icon, label: 'RFI',          noPopup: true};
 
   if(mode === 'devices'){
     // Data no se muestra en modo devices
@@ -272,10 +282,8 @@ function getPinConfig(d){
     if(cat === 'WAP')  return {c: st, icon: ICONS.wap_device,     label: 'WAP'};
     if(cat === 'AC')   return {c: st, icon: ICONS.ac_device,      label: 'Access Control'};
     if(cat === 'AV')   return {c: st, icon: ICONS.av_device,      label: 'Audiovisual'};
-    // fallback
     return {c: st, icon: ICONS.cctv_device, label: cat};
   } else {
-    // modo cabling
     var st = getColor(d.statusCabling);
     if(cat === 'CCTV') return {c: st, icon: ICONS.triangle_cabling, label: 'CCTV cabling'};
     if(cat === 'WAP')  return {c: st, icon: ICONS.triangle_cabling, label: 'WAP cabling'};
@@ -389,6 +397,7 @@ function drawPins(){
     var lastTap = 0;
     g.addEventListener('click', function(e){
       e.stopPropagation();
+      if(cfg.noPopup) return; // CO y RFI no abren popup
       var now = Date.now();
       if(now - lastTap < 350){ selectPin(d.id, true); }
       lastTap = now;
