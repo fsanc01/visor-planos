@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 <title>Visor de Planos</title>
 <style>
-  *{box-sizing:border-box;margin:0;padding:0}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
   html,body{width:100%;height:100%;overflow:hidden;background:#f0ede8;
     font-family:-apple-system,BlinkMacSystemFont,sans-serif;color:#1a1a1a}
 
@@ -177,8 +177,8 @@ var PDF_URL = params.get('pdf');
 var MODE    = params.get('mode') || 'devices'; // 'devices' o 'cabling'
 var DEVICES = [];
 
-// Formato pipe: id|tipo|x|y|ambiente|statusCabling|category
-// p[0]=id p[1]=tipo p[2]=x p[3]=y p[4]=ambiente p[5]=statusCabling p[6]=category
+// Formato pipe: id|tipo|x|y|ambiente|statusDevice|statusCabling|category
+// p[0]=id p[1]=tipo p[2]=x p[3]=y p[4]=ambiente p[5]=statusDevice p[6]=statusCabling p[7]=category
 (function(){
   try {
     var full = window.location.href;
@@ -199,8 +199,8 @@ var DEVICES = [];
         y:            parseFloat(p[3]) || 0,
         room:         p[4] || '',
         statusDevice: p[5] || 'pending',
-        statusCabling:p[5] || 'pending',
-        category:     p[6] || ''
+        statusCabling:p[6] || 'pending',
+        category:     p[7] || ''
       };
     });
   } catch(e){ DEVICES = []; }
