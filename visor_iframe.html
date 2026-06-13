@@ -318,14 +318,25 @@ function loadImage(url){
   var img = new Image();
   img.crossOrigin = 'anonymous';
   img.onload = function(){
-    pdfW = img.naturalWidth;
-    pdfH = img.naturalHeight;
-    vbW  = pdfW;
-    vbH  = pdfH;
+    // Límite seguro de canvas para iOS WebView (~16.7M px total y 4096 por lado)
+    var MAX_SIDE = 4000;
+    var natW = img.naturalWidth;
+    var natH = img.naturalHeight;
+    var renderScale = 1;
+    if(natW > MAX_SIDE || natH > MAX_SIDE){
+      renderScale = Math.min(MAX_SIDE/natW, MAX_SIDE/natH);
+    }
+    // viewBox usa el tamaño "lógico" (natural) para que las coordenadas de los pins no cambien
+    vbW = natW;
+    vbH = natH;
+    // El canvas físico se dibuja a la resolución capada
+    pdfW = Math.round(natW * renderScale);
+    pdfH = Math.round(natH * renderScale);
+
     var cv = document.getElementById('pdfCanvas');
     cv.width  = pdfW;
     cv.height = pdfH;
-    cv.getContext('2d').drawImage(img, 0, 0);
+    cv.getContext('2d').drawImage(img, 0, 0, pdfW, pdfH);
     svg.setAttribute('width',  pdfW);
     svg.setAttribute('height', pdfH);
     svg.setAttribute('viewBox','0 0 '+vbW+' '+vbH);
@@ -345,7 +356,16 @@ function loadPDF(url){
   pdfjsLib.getDocument(url).promise
     .then(function(pdf){ return pdf.getPage(1); })
     .then(function(page){
+      // Tamaño base de la página (a escala 1)
+      var base = page.getViewport({scale: 1});
       var RENDER = 1.8;
+      // Limitar para no exceder el canvas máximo de iOS WebView
+      var MAX_SIDE = 4000;
+      var projW = base.width * RENDER;
+      var projH = base.height * RENDER;
+      if(projW > MAX_SIDE || projH > MAX_SIDE){
+        RENDER = RENDER * Math.min(MAX_SIDE/projW, MAX_SIDE/projH);
+      }
       pageViewport = page.getViewport({scale: RENDER});
       pdfW = pageViewport.width;
       pdfH = pageViewport.height;
